@@ -15,19 +15,47 @@ var http = require('http');
 var port = normalizePort(process.env.PORT || '3000');
 app.set('port', port);
 
+
+/**
+ * Cluster support
+ */
+var cluster = require('cluster');
+var numCPUs = require('os').cpus().length;
+
 /**
  * Create HTTP server.
  */
 
-var server = http.createServer(app);
+var server;
+
+if (cluster.isMaster) {
+  // Fork workers.
+  for (var i = 0; i < numCPUs; i++) {
+    cluster.fork();
+  }
+
+  cluster.on('exit', function(worker, code, signal) {
+    console.log('worker ' + worker.process.pid + ' died');
+  });
+} else {
+  // Workers can share any TCP connection
+  // In this case its a HTTP server
+  server = http.createServer(app);
+  // Listen on provided port, on all network interfaces
+  server.listen(port);
+  server.on('error', onError);
+  server.on('listening', onListening);
+}
+
+//var server = http.createServer(app);
 
 /**
  * Listen on provided port, on all network interfaces.
  */
 
-server.listen(port);
+/*server.listen(port);
 server.on('error', onError);
-server.on('listening', onListening);
+server.on('listening', onListening);*/
 
 /**
  * Normalize a port into a number, string, or false.
